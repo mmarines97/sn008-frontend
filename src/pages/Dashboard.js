@@ -7,10 +7,17 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setTimeout(() => window.location.reload(), 1500);
+      return;
+    }
     Promise.all([API.get('/parts'), API.get('/movements')]).then(([p, m]) => {
       setParts(p.data);
       setMovements(m.data);
       setLoading(false);
+    }).catch(() => {
+      setTimeout(() => window.location.reload(), 1500);
     });
   }, []);
 
@@ -35,7 +42,6 @@ export default function Dashboard() {
   return (
     <div style={{padding:24}}>
       <h2 style={{fontFamily:'Rajdhani,sans-serif',fontSize:20,fontWeight:700,color:'#083E6F',letterSpacing:2,textTransform:'uppercase',marginBottom:20}}>Dashboard</h2>
-
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:12,marginBottom:24}}>
         <Stat label="Total PNs" value={parts.length} bottom="#083E6F"/>
         <Stat label="Stock OK" value={ok} color="#007AE5" bottom="#007AE5"/>
@@ -44,10 +50,9 @@ export default function Dashboard() {
         <Stat label="Issues today" value={todayIssues} color="#007AE5" bottom="#007AE5"/>
         <Stat label="Total issues" value={totalIssues} bottom="#083E6F"/>
       </div>
-
       {low > 0 && (
         <div style={{background:'#fffbeb',border:'1.5px solid #fcd34d',borderRadius:6,padding:'10px 14px',fontSize:13,color:'#92400e',marginBottom:20}}>
-          ⚠ {low} part{low>1?'s':''} with low stock — check Stock list
+          ⚠ {low} part{low>1?'s':''} with low stock
         </div>
       )}
       {out > 0 && (
@@ -55,7 +60,6 @@ export default function Dashboard() {
           ⛔ {out} part{out>1?'s':''} out of stock
         </div>
       )}
-
       <div style={{background:'#fff',border:'1px solid #D8D7C0',borderRadius:8,overflow:'hidden'}}>
         <div style={{padding:'10px 16px',borderBottom:'1px solid #D8D7C0',background:'#F5F4DF'}}>
           <span style={{fontFamily:'Rajdhani,sans-serif',fontSize:11,fontWeight:700,color:'#007AE5',letterSpacing:1.5,textTransform:'uppercase'}}>Recent movements</span>

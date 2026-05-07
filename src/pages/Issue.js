@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import API from '../services/api';
-import { useAuth } from '../context/AuthContext';
 
 export default function Issue() {
   const [scan, setScan] = useState('');
@@ -13,10 +13,18 @@ export default function Issue() {
   const [alert, setAlert] = useState(null);
   const [loading, setLoading] = useState(false);
   const scanRef = useRef();
-  const { user } = useAuth();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    API.get('/parts').then(r => setParts(r.data));
+    API.get('/parts').then(r => {
+      setParts(r.data);
+      const pnFromUrl = searchParams.get('pn');
+      if (pnFromUrl) {
+        const found = r.data.find(p => p.pn.toUpperCase() === pnFromUrl.toUpperCase());
+        if (found) openIP(found);
+        else setAlert({ type: 'error', msg: 'Part not found: ' + pnFromUrl });
+      }
+    });
     scanRef.current?.focus();
   }, []);
 
@@ -25,11 +33,7 @@ export default function Issue() {
     const pn = val.replace('SN008:', '').trim().toUpperCase();
     if (!pn) return;
     const found = parts.find(p => p.pn.toUpperCase() === pn);
-    if (found) {
-      setPart(found);
-      setScan('');
-      setAlert(null);
-    }
+    if (found) { setPart(found); setScan(''); setAlert(null); }
   };
 
   const handleKeyDown = (e) => {
@@ -41,6 +45,15 @@ export default function Issue() {
     }
   };
 
+  const openIP = (p) => {
+    setPart(p);
+    setQty(1);
+    setReg('');
+    setLogbook('');
+    setNotes('');
+    setAlert(null);
+  };
+
   const cancel = () => {
     setPart(null); setScan(''); setReg(''); setLogbook(''); setNotes(''); setQty(1);
     setAlert(null); scanRef.current?.focus();
@@ -49,7 +62,7 @@ export default function Issue() {
   const confirm = async () => {
     if (!reg) { setAlert({ type: 'error', msg: 'Fill in A/C Registration.' }); return; }
     if (!logbook) { setAlert({ type: 'error', msg: 'Fill in Logbook Ref.' }); return; }
-    if (qty <= 0 || qty > part.stock) { setAlert({ type: 'error', msg: 'Invalid quantity.' }); return; }
+    if (qty <= 0 || qty > part.stock) { setAlert({ type: 'error', msg: 'Invalid quantity. Available: ' + part.stock }); return; }
     setLoading(true);
     try {
       await API.post('/movements', {
@@ -76,7 +89,6 @@ export default function Issue() {
   return (
     <div style={{padding:24}}>
       <h2 style={{fontFamily:'Rajdhani,sans-serif',fontSize:20,fontWeight:700,color:'#083E6F',letterSpacing:2,textTransform:'uppercase',marginBottom:20}}>Issue Part</h2>
-
       <div style={{background:'#fff',border:'1px solid #D8D7C0',borderRadius:10,overflow:'hidden',marginBottom:20}}>
         <div style={{height:5,background:'#007AE5'}}></div>
         <div style={{padding:28,textAlign:'center'}}>
@@ -89,9 +101,7 @@ export default function Issue() {
           </div>
         </div>
       </div>
-
       {alert && <div style={alertStyle(alert.type)}>{alert.msg}</div>}
-
       {part && (
         <div style={{background:'#fff',border:'2px solid #007AE5',borderRadius:10,padding:22}}>
           <div style={{display:'flex',gap:20,alignItems:'flex-start',paddingBottom:16,marginBottom:16,borderBottom:'1px solid #D8D7C0',flexWrap:'wrap'}}>
@@ -102,7 +112,7 @@ export default function Issue() {
             </div>
             <div style={{textAlign:'right'}}>
               <div style={{fontSize:10,color:'#5A6072',textTransform:'uppercase',letterSpacing:1}}>Current stock</div>
-              <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:36,fontWeight:700,color: part.stock===0?'#EB6110':part.stock<=part.min_stock?'#d97706':'#007AE5'}}>{part.stock} {part.unit}</div>
+              <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:36,fontWeight:700,color:part.stock===0?'#EB6110':part.stock<=part.min_stock?'#d97706':'#007AE5'}}>{part.stock} {part.unit}</div>
               <div style={{fontSize:11,color:'#5A6072'}}>min: {part.min_stock}</div>
             </div>
           </div>
@@ -139,3 +149,4 @@ export default function Issue() {
     </div>
   );
 }
+
